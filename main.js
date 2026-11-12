@@ -2,7 +2,8 @@
 // Shows two buttons on the video that move the file being played into one of
 // two folders chosen in the plugin preferences, then plays the next file.
 
-const { core, console, event, file, menu, mpv, overlay, playlist, preferences, utils } = iina;
+const { core, console, event, file, input, menu, mpv, overlay, playlist, preferences, utils } =
+  iina;
 
 const SLOTS = [1, 2];
 const MV = "/bin/mv";
@@ -444,19 +445,73 @@ function shortcutSignature() {
 
 let builtShortcuts = null;
 
+// ---------- High-priority key handling ----------
+
+// A menu shortcut loses to a key that IINA's own key bindings already use.
+// Listening with PRIORITY_HIGH runs the plugin's handler before those bindings,
+// and returning true stops IINA from handling the key as well.
+
+const DUPLICATE_TRIGGER_MS = 300;
+const keyActions = {}; // normalized key -> action, for the current shortcuts
+const listenedKeys = new Set();
+const lastTriggered = {};
+
+/**
+ * Runs a shortcut action once even if the menu item and the key listener both
+ * fire for the same key press.
+ */
+function runShortcutAction(name, action) {
+  const now = Date.now();
+  if (now - (lastTriggered[name] || 0) < DUPLICATE_TRIGGER_MS) return;
+  lastTriggered[name] = now;
+  action();
+}
+
+function bindKeys(actions) {
+  if (!input || typeof input.onKeyDown !== "function") return; // older IINA
+  Object.keys(keyActions).forEach((key) => delete keyActions[key]);
+  SHORTCUT_KEYS.forEach((name) => {
+    const binding = shortcut(name);
+    if (!binding) return;
+    const key = input.normalizeKeyCode(binding);
+    keyActions[key] = actions[name];
+    if (listenedKeys.has(key)) return;
+    // IINA has no way to remove a listener, so each key gets one listener for
+    // good and it looks up whether the key is still assigned.
+    listenedKeys.add(key);
+    input.onKeyDown(
+      key,
+      () => {
+        const action = keyActions[key];
+        if (!action) return false;
+        action();
+        return true;
+      },
+      input.PRIORITY_HIGH
+    );
+  });
+}
+
 function buildMenu() {
+  const actions = {};
+  SLOTS.forEach((slot) => {
+    actions["key" + slot] = () => runShortcutAction("key" + slot, () => moveCurrentTo(slot));
+  });
+  actions.keyUndo = () => runShortcutAction("keyUndo", () => undoLastMove());
+
   menu.removeAllItems();
   SLOTS.forEach((slot) => {
     menu.addItem(
-      menu.item("Move to Folder " + slot, () => moveCurrentTo(slot), shortcutOptions("key" + slot))
+      menu.item("Move to Folder " + slot, actions["key" + slot], shortcutOptions("key" + slot))
     );
   });
-  menu.addItem(menu.item("Undo Last Move", () => undoLastMove(), shortcutOptions("keyUndo")));
+  menu.addItem(menu.item("Undo Last Move", actions.keyUndo, shortcutOptions("keyUndo")));
   menu.addItem(menu.separator());
   SLOTS.forEach((slot) => {
     menu.addItem(menu.item("Set Folder " + slot + "…", () => chooseDir(slot)));
   });
   menu.addItem(menu.item("Show/Hide On-Screen Buttons", () => toggleButtons()));
+  bindKeys(actions);
   builtShortcuts = shortcutSignature();
 }
 

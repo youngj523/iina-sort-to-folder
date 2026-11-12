@@ -42,7 +42,7 @@ The folders must already exist. The plugin does not create them.
 Both settings are in Settings > Plugins > Sort to Folder > Preferences and take effect when you return to the player window.
 
 - **Button position**: top, middle or bottom, on the left or right side of the video. The default is middle right.
-- **Shortcuts**: each of the three shortcuts can be changed. Click a field and press the key combination you want. Press Esc to cancel, or click Clear to have no shortcut. Combinations that IINA or macOS already use, such as Command+Q, cannot be recorded.
+- **Shortcuts**: each of the three shortcuts can be changed. Click a field and press the key combination you want. Press Esc to cancel, or click Clear to have no shortcut. Combinations that IINA or macOS already use, such as Command+Q, cannot be recorded. The plugin's shortcuts take priority over IINA's own key bindings, so a key that IINA already uses for something else runs the plugin's action instead.
 
 ## Usage
 

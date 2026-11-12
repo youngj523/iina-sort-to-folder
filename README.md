@@ -32,8 +32,8 @@ The plugin asks for three permissions: showing on-screen messages, drawing the b
 
 Use either way:
 
-- **Pick in a dialog**: while a video is playing, choose Plugin > Set Folder 1… or Set Folder 2… in the menu bar.
-- **Type the path**: in Settings > Plugins > Sort to Folder > Preferences, enter a full path such as `~/Movies/Keep`.
+- **Pick in a dialog**: in Settings > Plugins > Sort to Folder > Preferences, click Choose… next to a folder field. While a video is playing, Plugin > Set Folder 1… or Set Folder 2… in the menu bar does the same.
+- **Type the path**: in the same Preferences page, enter a full path such as `~/Movies/Keep`.
 
 The folders must already exist. The plugin does not create them.
 
@@ -69,6 +69,7 @@ ln -s "$(pwd)" ~/Library/Application\ Support/com.colliderli.iina/plugins/sort-t
 | --- | --- |
 | `Info.json` | Plugin metadata, permissions and preference defaults |
 | `main.js` | Main script: moving files, playlist handling, menu items and shortcuts |
+| `global.js` | Background script that opens the folder dialog for the preferences page |
 | `overlay.html` | The two buttons shown over the video |
 | `preferences.html` | Preferences page |
 

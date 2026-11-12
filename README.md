@@ -1,68 +1,67 @@
-# Sort to Folder（IINA 外掛）
+# Sort to Folder (IINA plugin)
 
-一次開很多部影片、邊看邊分類用的 [IINA](https://iina.io) 外掛。
-播放畫面右側會出現兩個按鈕，按一下就把**目前播放的影片**移動到對應的資料夾，並自動播放下一部。
+An [IINA](https://iina.io) plugin for sorting a batch of videos while you watch them.
+Two buttons appear on the right side of the video. Click one to move **the video being played** into the matching folder and continue with the next one.
 
-## 功能
+## Features
 
-- 在偏好設定中指定兩個目標資料夾，按鈕文字可自訂（留空則顯示資料夾名稱）。
-- 移動後自動播放播放清單的下一部，並把已移走的影片從清單移除；移走的是最後一部時，會改播前一部。
-- 目的地已有同名檔案時不會覆蓋，會改名成 `檔名 (1).mp4`。
-- 外掛的選單、按鈕與畫面訊息皆為英文。
-- 可復原上一次移動（檔案搬回原位並回到那一部）。
-- 每個播放視窗各有自己的按鈕，多視窗同時播放也能用。
+- Set two destination folders in the plugin preferences. Button labels can be customized; when left empty, the folder name is shown.
+- After a move, the next video in the playlist plays and the moved one is removed from the playlist. If the moved video was the last entry, the previous one plays instead.
+- A file with the same name in the destination is never overwritten. The moved file is renamed to `name (1).mp4` instead.
+- The last move can be undone: the file goes back to its original location and playlist position.
+- Each player window has its own buttons, so several windows can be sorted at the same time.
 
-| 操作 | 按鈕 | 快速鍵 |
+| Action | Button | Shortcut |
 | --- | --- | --- |
-| 移動到資料夾 1（Move to Folder 1） | 畫面右側上方按鈕 | Ctrl+1 |
-| 移動到資料夾 2（Move to Folder 2） | 畫面右側下方按鈕 | Ctrl+2 |
-| 復原上次移動（Undo Last Move） | 選單「外掛 → Undo Last Move」 | Ctrl+Z |
+| Move to Folder 1 | Upper button on the right side of the video | Ctrl+1 |
+| Move to Folder 2 | Lower button on the right side of the video | Ctrl+2 |
+| Undo Last Move | Menu: Plugin > Undo Last Move | Ctrl+Z |
 
-## 安裝
+## Installation
 
-需要 IINA 1.4.0 以上。
+Requires IINA 1.4.0 or later.
 
-1. 開啟 IINA 的「設定 → 外掛」。
-2. 按「從 GitHub 安裝」，輸入 `youngj523/iina-sort-to-folder`。
-3. 同意權限後啟用外掛。
+1. Open IINA's Settings > Plugins.
+2. Click "Install from GitHub" and enter `youngj523/iina-sort-to-folder`.
+3. Accept the permissions and enable the plugin.
 
-外掛需要三項權限：顯示畫面訊息、在影片上顯示按鈕、存取檔案（用來移動影片）。
+The plugin asks for three permissions: showing on-screen messages, drawing the buttons over the video, and file system access (used to move the videos).
 
-## 設定資料夾
+## Setting the folders
 
-兩種方式擇一：
+Use either way:
 
-- **用視窗點選**：播放任一影片時，到選單列「外掛 → Set Folder 1…／Set Folder 2…」選擇資料夾。
-- **手動輸入**：在「設定 → 外掛 → Sort to Folder → 偏好設定」填入完整路徑，例如 `~/Movies/保留`。
+- **Pick in a dialog**: while a video is playing, choose Plugin > Set Folder 1… or Set Folder 2… in the menu bar.
+- **Type the path**: in Settings > Plugins > Sort to Folder > Preferences, enter a full path such as `~/Movies/Keep`.
 
-資料夾必須已經存在，外掛不會自動建立。
+The folders must already exist. The plugin does not create them.
 
-## 使用方式
+## Usage
 
-1. 把要分類的影片一次拖進 IINA（會成為播放清單）。
-2. 看到想歸類的影片時，按畫面右側的按鈕或快速鍵。
-3. 不想移動的影片照常按下一部跳過即可。
+1. Drag all the videos you want to sort into IINA. They become the playlist.
+2. When a video belongs in one of the folders, click its button or press the shortcut.
+3. To leave a video where it is, skip to the next one as usual.
 
-## 注意事項
+## Notes
 
-- 只能移動本機檔案，網路串流無法移動。
-- 移動到不同硬碟時是「複製後刪除」，大檔案需要等一下，完成後畫面會顯示訊息；這段期間無法再移動其他影片。
-- 不想看到按鈕時，可用選單「外掛 → Show/Hide On-Screen Buttons」隱藏，快速鍵仍可使用。
-- 復原只記得最近一次移動，關閉視窗後就無法復原。
+- Only local files can be moved. Network streams cannot.
+- Moving to a different disk copies the file and then deletes the original, so large files take a while. A message appears when the move is done, and no other video can be moved until then.
+- To hide the buttons, choose Plugin > Show/Hide On-Screen Buttons. The shortcuts keep working.
+- Undo only remembers the most recent move, and it is forgotten when the window closes.
 
-## 開發
+## Development
 
-把這個資料夾連結成開發版外掛後重新啟動 IINA：
+Link this folder as a development plugin, then restart IINA:
 
 ```sh
 ln -s "$(pwd)" ~/Library/Application\ Support/com.colliderli.iina/plugins/sort-to-folder.iinaplugin-dev
 ```
 
-| 檔案 | 用途 |
+| File | Purpose |
 | --- | --- |
-| `Info.json` | 外掛資訊、權限與偏好設定預設值 |
-| `main.js` | 主程式：移動檔案、播放清單處理、選單與快速鍵 |
-| `overlay.html` | 播放畫面上的兩個按鈕 |
-| `preferences.html` | 偏好設定頁 |
+| `Info.json` | Plugin metadata, permissions and preference defaults |
+| `main.js` | Main script: moving files, playlist handling, menu items and shortcuts |
+| `overlay.html` | The two buttons shown over the video |
+| `preferences.html` | Preferences page |
 
-除錯訊息可在 IINA 的「視窗 → 記錄檢視器」查看。API 文件：<https://docs.iina.io/>
+Log messages are available in IINA under Window > Log Viewer. API documentation: <https://docs.iina.io/>

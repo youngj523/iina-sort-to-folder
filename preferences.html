@@ -35,6 +35,7 @@
       <div class="row">
         <label for="dir1">Location</label>
         <input id="dir1" type="text" data-pref-key="dir1" placeholder="e.g. ~/Movies/Keep" />
+        <button type="button" data-choose="1">Choose…</button>
       </div>
       <div class="row">
         <label for="label1">Button label</label>
@@ -47,6 +48,7 @@
       <div class="row">
         <label for="dir2">Location</label>
         <input id="dir2" type="text" data-pref-key="dir2" placeholder="e.g. ~/Movies/Watch Later" />
+        <button type="button" data-choose="2">Choose…</button>
       </div>
       <div class="row">
         <label for="label2">Button label</label>
@@ -93,8 +95,7 @@
     </div>
 
     <p class="pref-help">
-      Folder locations: enter a full path starting with <code>/</code> or <code>~/</code>. The folder must already exist.
-      To pick a folder in a dialog instead, play a video and choose Plugin &gt; Set Folder 1… or Set Folder 2… in the menu bar.<br />
+      Folder locations: click Choose… to pick a folder, or enter a full path starting with <code>/</code> or <code>~/</code>. The folder must already exist.<br />
       Shortcuts: click a field, then press the key combination you want. Press Esc to cancel, or use Clear to remove the shortcut.
       Combinations that IINA or macOS already use, such as Command+Q, cannot be recorded.<br />
       Changes take effect when you return to the player window.
@@ -182,6 +183,41 @@
           if (!keystroke) return; // a modifier on its own, or an unsupported key
           save(input, keystroke);
           input.blur();
+        });
+      });
+
+      // ---------- Folder picker ----------
+
+      // This page cannot open a folder dialog. A request is written to the
+      // preferences, the plugin's global script shows the dialog and stores the
+      // result, and the field is refreshed from the preferences afterwards.
+      const PICK_POLL_MS = 500;
+      const PICK_WAIT_MS = 120000;
+      let pickTimer = null;
+
+      function watchFolder(slot) {
+        const field = document.getElementById("dir" + slot);
+        const deadline = Date.now() + PICK_WAIT_MS;
+        clearInterval(pickTimer);
+        pickTimer = setInterval(() => {
+          if (Date.now() > deadline) {
+            clearInterval(pickTimer);
+            return;
+          }
+          window.iina.preferences.get("dir" + slot, (value) => {
+            if (typeof value !== "string" || value === field.value) return;
+            if (document.activeElement === field) return; // being typed in
+            field.value = value;
+            clearInterval(pickTimer);
+          });
+        }, PICK_POLL_MS);
+      }
+
+      document.querySelectorAll("button[data-choose]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const slot = button.dataset.choose;
+          window.iina.preferences.set("pickRequest", slot + ":" + Date.now());
+          watchFolder(slot);
         });
       });
 

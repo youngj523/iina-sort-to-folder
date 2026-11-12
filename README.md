@@ -1,11 +1,12 @@
 # Sort to Folder (IINA plugin)
 
 An [IINA](https://iina.io) plugin for sorting a batch of videos while you watch them.
-Two buttons appear on the video. Click one to move **the video being played** into the matching folder and continue with the next one.
+Buttons appear on the video, one per folder. Click one to move **the video being played** into that folder and continue with the next one.
 
 ## Features
 
-- Set two destination folders in the plugin preferences. Button labels can be customized; when left empty, the folder name is shown.
+- Set up to 10 destination folders in the plugin preferences. You start with one and add more as needed.
+- Each folder has its own on-screen button and its own shortcut. Button labels can be customized; when left empty, the folder name is shown.
 - After a move, the next video in the playlist plays and the moved one is removed from the playlist. If the moved video was the last entry, the previous one plays instead.
 - A file with the same name in the destination is never overwritten. The moved file is renamed to `name (1).mp4` instead.
 - If the video is already in the chosen folder, nothing is moved and the next video plays. The video stays in the playlist.
@@ -14,8 +15,8 @@ Two buttons appear on the video. Click one to move **the video being played** in
 
 | Action | Button | Default shortcut |
 | --- | --- | --- |
-| Move to Folder 1 | Upper button | Ctrl+1 |
-| Move to Folder 2 | Lower button | Ctrl+2 |
+| Move to Folder 1 to 9 | The folder's button | Ctrl+1 to Ctrl+9 |
+| Move to Folder 10 | The folder's button | Ctrl+0 |
 | Undo Last Move | Menu: Plugin > Undo Last Move | Ctrl+Z |
 
 ## Installation
@@ -30,19 +31,20 @@ The plugin asks for three permissions: showing on-screen messages, drawing the b
 
 ## Setting the folders
 
-Use either way:
+Open Settings > Plugins > Sort to Folder > Preferences.
 
-- **Pick in a dialog**: in Settings > Plugins > Sort to Folder > Preferences, click Choose… next to a folder field. While a video is playing, Plugin > Set Folder 1… or Set Folder 2… in the menu bar does the same.
-- **Type the path**: in the same Preferences page, enter a full path such as `~/Movies/Keep`.
+- **Add or remove folders**: click Add Folder for another folder, up to 10, or Remove Last Folder to drop the last one. A removed folder is only hidden; its settings come back if you add it again.
+- **Pick in a dialog**: click Choose… next to a folder's location. While a video is playing, Plugin > Set Folder 1…, Set Folder 2… and so on in the menu bar do the same.
+- **Type the path**: enter a full path such as `~/Movies/Keep`.
 
 The folders must already exist. The plugin does not create them.
 
 ## Customizing
 
-Both settings are in Settings > Plugins > Sort to Folder > Preferences and take effect when you return to the player window.
+These settings are on the same Preferences page and take effect when you return to the player window.
 
-- **Button position**: top, middle or bottom, on the left or right side of the video. The default is middle right.
-- **Shortcuts**: each of the three shortcuts can be changed. Click a field and press the key combination you want. Press Esc to cancel, or click Clear to have no shortcut. Combinations that IINA or macOS already use, such as Command+Q, cannot be recorded. The plugin's shortcuts take priority over IINA's own key bindings, so a key that IINA already uses for something else runs the plugin's action instead.
+- **Button position**: top, middle or bottom, on the left or right side of the video. The default is middle right. With more than five folders the buttons are drawn smaller so they fit.
+- **Shortcuts**: every folder's shortcut and the undo shortcut can be changed. Click a field and press the key combination you want. Press Esc to cancel, or click Clear to have no shortcut. Combinations that IINA or macOS already use, such as Command+Q, cannot be recorded. The plugin's shortcuts take priority over IINA's own key bindings, so a key that IINA already uses for something else runs the plugin's action instead.
 
 ## Usage
 
@@ -70,7 +72,7 @@ ln -s "$(pwd)" ~/Library/Application\ Support/com.colliderli.iina/plugins/sort-t
 | `Info.json` | Plugin metadata, permissions and preference defaults |
 | `main.js` | Main script: moving files, playlist handling, menu items and shortcuts |
 | `global.js` | Background script that opens the folder dialog for the preferences page |
-| `overlay.html` | The two buttons shown over the video |
+| `overlay.html` | The buttons shown over the video |
 | `preferences.html` | Preferences page |
 
 Log messages are available in IINA under Window > Log Viewer. API documentation: <https://docs.iina.io/>

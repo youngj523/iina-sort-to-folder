@@ -162,6 +162,17 @@ function findPlaylistIndex(path, hint) {
 }
 
 /**
+ * Plays the entry after the given file, keeping the file in the playlist.
+ * Returns false when the file is the last entry or is no longer the one playing.
+ */
+function playNextAfter(path, hint) {
+  const index = findPlaylistIndex(path, hint);
+  if (index < 0 || index !== playlistPos() || index >= playlistCount() - 1) return false;
+  playlist.play(index + 1);
+  return true;
+}
+
+/**
  * Drops the moved file from the playlist. If it is still the one playing,
  * playback goes on to the next entry, or back to the previous one when the
  * moved file was last. Returns false when the entry could not be found.
@@ -233,7 +244,11 @@ async function moveCurrentTo(slot) {
   busy = true;
   try {
     if (await isSameDirectory(dirname(from), cfg.dir)) {
-      core.osd("Already in \"" + cfg.label + "\"");
+      // Nothing to move: treat the video as sorted and go on to the next one.
+      const skipped = playNextAfter(from, index);
+      core.osd(
+        "Already in \"" + cfg.label + "\"" + (skipped ? ", playing next" : " (last video)")
+      );
       return;
     }
     const to = uniqueTarget(cfg.dir, basename(from));

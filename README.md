@@ -8,6 +8,7 @@ Two buttons appear on the video. Click one to move **the video being played** in
 - Set two destination folders in the plugin preferences. Button labels can be customized; when left empty, the folder name is shown.
 - After a move, the next video in the playlist plays and the moved one is removed from the playlist. If the moved video was the last entry, the previous one plays instead.
 - A file with the same name in the destination is never overwritten. The moved file is renamed to `name (1).mp4` instead.
+- If the video is already in the chosen folder, nothing is moved and the next video plays. The video stays in the playlist.
 - The last move can be undone: the file goes back to its original location and playlist position.
 - Each player window has its own buttons, so several windows can be sorted at the same time.
 

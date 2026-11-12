@@ -23,7 +23,7 @@
 需要 IINA 1.4.0 以上。
 
 1. 開啟 IINA 的「設定 → 外掛」。
-2. 按「從 GitHub 安裝」，輸入 `youngj523/iina_plugin`。
+2. 按「從 GitHub 安裝」，輸入 `youngj523/iina-sort-to-folder`。
 3. 同意權限後啟用外掛。
 
 外掛需要三項權限：顯示畫面訊息、在影片上顯示按鈕、存取檔案（用來移動影片）。

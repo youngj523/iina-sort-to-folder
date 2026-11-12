@@ -34,7 +34,7 @@ The plugin asks for three permissions: showing on-screen messages, drawing the b
 Open Settings > Plugins > Sort to Folder > Preferences.
 
 - **Add or remove folders**: click Add Folder for another folder, up to 10, or Remove Last Folder to drop the last one. A removed folder is only hidden; its settings come back if you add it again.
-- **Pick in a dialog**: click Choose… next to a folder's location. While a video is playing, Plugin > Set Folder 1…, Set Folder 2… and so on in the menu bar do the same.
+- **Pick in a dialog**: click Choose… next to a folder's location.
 - **Type the path**: enter a full path such as `~/Movies/Keep`.
 
 The folders must already exist. The plugin does not create them.

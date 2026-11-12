@@ -402,8 +402,19 @@ function toggleButtons() {
   core.osd(next ? "Sort buttons shown" : "Sort buttons hidden");
 }
 
+const MODIFIER_NAMES = { ctrl: "Ctrl", alt: "Alt", shift: "Shift", meta: "Meta" };
+
+/**
+ * Reads a shortcut preference. IINA matches modifier names exactly, so a
+ * hand-edited value such as "ctrl+1" is given the expected capitalization.
+ */
 function shortcut(key) {
-  return String(preferences.get(key) || "").trim();
+  const parts = String(preferences.get(key) || "").trim().split("+");
+  const last = parts.pop();
+  return parts
+    .map((part) => MODIFIER_NAMES[part.trim().toLowerCase()] || part.trim())
+    .concat(last.trim())
+    .join("+");
 }
 
 /** Menu item options for a shortcut preference; an empty value means no shortcut. */

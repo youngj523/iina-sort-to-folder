@@ -1,9 +1,9 @@
 {
   "name": "Sort to Folder",
   "identifier": "io.github.youngj523.sort-to-folder",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "ghRepo": "youngj523/iina-sort-to-folder",
-  "ghVersion": 2,
+  "ghVersion": 3,
   "description": "Adds two on-screen buttons that move the video being played into a chosen folder and then play the next one.",
   "author": {
     "name": "youngj523",

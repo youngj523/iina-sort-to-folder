@@ -24,6 +24,9 @@
         flex: 1;
         min-width: 0;
       }
+      input.shortcut {
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
@@ -74,24 +77,119 @@
       <h3>Shortcuts</h3>
       <div class="row">
         <label for="key1">Move to folder 1</label>
-        <input id="key1" type="text" data-pref-key="key1" placeholder="e.g. Ctrl+1" />
+        <input id="key1" class="shortcut" type="text" readonly data-pref-key="key1" placeholder="None" />
+        <button type="button" data-clear="key1">Clear</button>
       </div>
       <div class="row">
         <label for="key2">Move to folder 2</label>
-        <input id="key2" type="text" data-pref-key="key2" placeholder="e.g. Ctrl+2" />
+        <input id="key2" class="shortcut" type="text" readonly data-pref-key="key2" placeholder="None" />
+        <button type="button" data-clear="key2">Clear</button>
       </div>
       <div class="row">
         <label for="keyUndo">Undo last move</label>
-        <input id="keyUndo" type="text" data-pref-key="keyUndo" placeholder="e.g. Ctrl+z" />
+        <input id="keyUndo" class="shortcut" type="text" readonly data-pref-key="keyUndo" placeholder="None" />
+        <button type="button" data-clear="keyUndo">Clear</button>
       </div>
     </div>
 
     <p class="pref-help">
       Folder locations: enter a full path starting with <code>/</code> or <code>~/</code>. The folder must already exist.
       To pick a folder in a dialog instead, play a video and choose Plugin &gt; Set Folder 1… or Set Folder 2… in the menu bar.<br />
-      Shortcuts: write the modifiers and the key joined with <code>+</code>, for example <code>Ctrl+1</code>, <code>Alt+k</code> or <code>Meta+Shift+m</code>.
-      Modifiers are <code>Ctrl</code>, <code>Alt</code> (Option), <code>Shift</code> and <code>Meta</code> (Command). Leave a field empty for no shortcut.<br />
+      Shortcuts: click a field, then press the key combination you want. Press Esc to cancel, or use Clear to remove the shortcut.
+      Combinations that IINA or macOS already use, such as Command+Q, cannot be recorded.<br />
       Changes take effect when you return to the player window.
     </p>
+
+    <script>
+      // IINA turns a plugin shortcut into a menu key equivalent without any
+      // normalization, so the text must be exact: modifiers spelled Ctrl, Alt,
+      // Shift, Meta, joined with "+", followed by one character or one of the
+      // key names below.
+      const NAMED_KEYS = {
+        Space: "SPACE",
+        Enter: "ENTER",
+        NumpadEnter: "ENTER",
+        Backspace: "BS",
+        Delete: "DEL",
+        Home: "HOME",
+        End: "END",
+        PageUp: "PGUP",
+        PageDown: "PGDWN",
+        ArrowLeft: "LEFT",
+        ArrowRight: "RIGHT",
+        ArrowUp: "UP",
+        ArrowDown: "DOWN",
+        Minus: "-",
+        Equal: "=",
+        BracketLeft: "[",
+        BracketRight: "]",
+        Backslash: "\\",
+        Semicolon: ";",
+        Quote: "'",
+        Comma: ",",
+        Period: ".",
+        Slash: "/",
+        Backquote: "`",
+      };
+
+      /** Maps a physical key to the name IINA expects, or null if unsupported. */
+      function keyName(code) {
+        let match = /^Key([A-Z])$/.exec(code);
+        if (match) return match[1].toLowerCase();
+        match = /^Digit([0-9])$/.exec(code);
+        if (match) return match[1];
+        match = /^Numpad([0-9])$/.exec(code);
+        if (match) return "KP" + match[1];
+        if (/^F([1-9]|1[0-2])$/.test(code)) return code;
+        return NAMED_KEYS[code] || null;
+      }
+
+      /** Builds the shortcut text for a keydown event, or null if it has no usable key. */
+      function keystrokeFromEvent(e) {
+        const key = keyName(e.code);
+        if (!key) return null;
+        const parts = [];
+        if (e.ctrlKey) parts.push("Ctrl");
+        if (e.altKey) parts.push("Alt");
+        if (e.shiftKey) parts.push("Shift");
+        if (e.metaKey) parts.push("Meta");
+        parts.push(key);
+        return parts.join("+");
+      }
+
+      function save(input, value) {
+        input.value = value;
+        // IINA's preference binding stores the value on "change".
+        input.dispatchEvent(new Event("change"));
+      }
+
+      document.querySelectorAll("input.shortcut").forEach((input) => {
+        input.addEventListener("focus", () => {
+          input.placeholder = "Press keys…";
+        });
+        input.addEventListener("blur", () => {
+          input.placeholder = "None";
+        });
+        input.addEventListener("keydown", (e) => {
+          if (e.code === "Tab") return; // keep keyboard navigation working
+          e.preventDefault();
+          const plain = !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey;
+          if (plain && e.code === "Escape") {
+            input.blur();
+            return;
+          }
+          const keystroke = keystrokeFromEvent(e);
+          if (!keystroke) return; // a modifier on its own, or an unsupported key
+          save(input, keystroke);
+          input.blur();
+        });
+      });
+
+      document.querySelectorAll("button[data-clear]").forEach((button) => {
+        button.addEventListener("click", () => {
+          save(document.getElementById(button.dataset.clear), "");
+        });
+      });
+    </script>
   </body>
 </html>

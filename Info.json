@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "ghRepo": "youngj523/iina_plugin",
   "ghVersion": 1,
-  "description": "在播放畫面上顯示兩個按鈕，一鍵把目前播放的影片移動到指定資料夾，並自動播放下一部。",
+  "description": "Adds two on-screen buttons that move the video being played into a chosen folder and then play the next one.",
   "author": {
     "name": "youngj523",
     "url": "https://github.com/youngj523/iina_plugin"

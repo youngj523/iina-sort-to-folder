@@ -1,18 +1,22 @@
 // Sort to Folder — IINA plugin
-// 在播放畫面上顯示兩個按鈕，把目前播放的影片移動到偏好設定中指定的資料夾。
+// Shows two buttons on the video that move the file being played into one of
+// two folders chosen in the plugin preferences, then plays the next file.
 
 const { core, console, event, file, menu, mpv, overlay, playlist, preferences, utils } = iina;
 
 const SLOTS = [1, 2];
 const MV = "/bin/mv";
+const STAT = "/usr/bin/stat";
+const MAX_RENAME_ATTEMPTS = 1000;
 
 let busy = false;
-let lastMove = null; // { from, to }，供「復原上次移動」使用
+let lastMove = null; // { from, to, index } — kept for "Undo Last Move"
 
-// ---------- 路徑工具 ----------
+// ---------- Path helpers ----------
 
-function stripTrailingSlash(p) {
-  return p.length > 1 ? p.replace(/\/+$/, "") : p;
+function normalizeSlashes(p) {
+  const collapsed = p.replace(/\/{2,}/g, "/");
+  return collapsed.length > 1 ? collapsed.replace(/\/$/, "") : collapsed;
 }
 
 function dirname(p) {
@@ -29,48 +33,77 @@ function splitExt(name) {
   return i <= 0 ? [name, ""] : [name.slice(0, i), name.slice(i)];
 }
 
-/** 把偏好設定中的文字轉成絕對路徑；格式不對時回傳 null。 */
+/** Turns the preference text into an absolute path, or null if it is not one. */
 function resolveDir(raw) {
   let p = String(raw == null ? "" : raw).trim();
   if (!p) return null;
   if (p === "~") p = "~/";
   if (p.startsWith("~/")) p = utils.resolvePath(p);
   if (!p || !p.startsWith("/")) return null;
-  return stripTrailingSlash(p);
+  return normalizeSlashes(p);
 }
 
 function isDirectory(p) {
-  // 對一般檔案加上 "/." 會查不到，藉此分辨資料夾與檔案
+  // Appending "/." fails for a regular file, which tells folders and files apart.
   return file.exists(p + "/.");
 }
 
-/** 目的地已有同名檔案時，改用「名稱 (1).副檔名」這類不重複的檔名。 */
+/** Picks "name (1).ext" style names when the destination already has the file. */
 function uniqueTarget(dir, name) {
   let target = dir + "/" + name;
   if (!file.exists(target)) return target;
   const [stem, ext] = splitExt(name);
-  for (let i = 1; i < 1000; i++) {
+  for (let i = 1; i < MAX_RENAME_ATTEMPTS; i++) {
     target = dir + "/" + stem + " (" + i + ")" + ext;
     if (!file.exists(target)) return target;
   }
   return null;
 }
 
-/** 取得目前播放檔案在磁碟上的絕對路徑；不是本機檔案時回傳 null。 */
-function currentFilePath() {
-  if (core.status.idle) return null;
-  if (core.status.isNetworkResource) return null;
-  let p = mpv.getString("path");
-  if (!p || !p.startsWith("/")) {
-    const url = core.status.url;
-    if (typeof url === "string" && url.startsWith("file://")) {
-      p = url.slice("file://".length);
-    }
+/**
+ * Whether two paths point at the same folder on disk. Comparing device and
+ * inode numbers also catches different spellings of one folder: letter case on
+ * a case-insensitive volume, or a path that goes through a symlink.
+ */
+async function isSameDirectory(a, b) {
+  if (a === b) return true;
+  try {
+    const result = await utils.exec(STAT, ["-L", "-f", "%d:%i", a, b]);
+    if (result.status !== 0) return false;
+    const ids = result.stdout.trim().split("\n");
+    return ids.length === 2 && ids[0] === ids[1];
+  } catch (err) {
+    return false;
   }
-  return p && p.startsWith("/") ? p : null;
 }
 
-// ---------- 設定 ----------
+/** Converts a playlist entry or URL into an absolute local path, or null. */
+function toLocalPath(entry) {
+  if (typeof entry !== "string" || !entry) return null;
+  let p = entry;
+  if (p.startsWith("file://")) {
+    p = p.slice("file://".length);
+    try {
+      p = decodeURIComponent(p);
+    } catch (err) {
+      // Not percent-encoded: use the text as it is.
+    }
+  } else if (/^[a-z][a-z0-9+.-]*:\/\//i.test(p)) {
+    return null;
+  } else if (!p.startsWith("/")) {
+    const cwd = mpv.getString("working-directory");
+    if (!cwd) return null;
+    p = cwd + "/" + p;
+  }
+  return normalizeSlashes(p);
+}
+
+function currentFilePath() {
+  if (core.status.idle || core.status.isNetworkResource) return null;
+  return toLocalPath(mpv.getString("path")) || toLocalPath(core.status.url);
+}
+
+// ---------- Settings ----------
 
 function slotConfig(slot) {
   const dir = resolveDir(preferences.get("dir" + slot));
@@ -82,34 +115,60 @@ function slotConfig(slot) {
   };
 }
 
-function osd(message) {
-  core.osd(message);
+function buttonsEnabled() {
+  return preferences.get("showButtons") !== false;
 }
 
-// ---------- 播放清單 ----------
+// ---------- Playlist ----------
 
-/** 檔案移走後：播放下一部，並把已移走的項目從播放清單移除。 */
-function advanceAfterMove(movedPath) {
-  const items = playlist.list();
-  const index = items.findIndex((item) => item.filename === movedPath);
-  if (index < 0) return;
+// These read mpv's live playlist. IINA's own playlist.list() is a cached copy
+// that is not refreshed after an entry is removed, so its indices can be stale.
 
-  if (items.length <= 1) {
-    core.stop();
-    return;
+function playlistCount() {
+  return Math.round(mpv.getNumber("playlist-count"));
+}
+
+function playlistPos() {
+  return Math.round(mpv.getNumber("playlist-pos"));
+}
+
+function playlistPathAt(index) {
+  return toLocalPath(mpv.getString("playlist/" + index + "/filename"));
+}
+
+/** Finds the entry for a path, trying the index it was last seen at first. */
+function findPlaylistIndex(path, hint) {
+  const count = playlistCount();
+  if (hint >= 0 && hint < count && playlistPathAt(hint) === path) return hint;
+  for (let i = 0; i < count; i++) {
+    if (playlistPathAt(i) === path) return i;
   }
-  if (items[index].isPlaying) {
-    if (index < items.length - 1) {
-      playlist.playNext();
-    } else {
-      // 已經是最後一部：回到清單開頭，繼續處理先前跳過的影片
-      playlist.play(0);
-    }
+  return -1;
+}
+
+/**
+ * Drops the moved file from the playlist. If it is still the one playing,
+ * playback goes on to the next entry, or back to the previous one when the
+ * moved file was last. Returns false when the entry could not be found.
+ */
+function advanceAfterMove(movedPath, hint) {
+  const index = findPlaylistIndex(movedPath, hint);
+  if (index < 0) return false;
+
+  const count = playlistCount();
+  if (count <= 1) {
+    // Stopping also clears the playlist, so no dead entry is left behind.
+    core.stop();
+    return true;
+  }
+  if (index === playlistPos()) {
+    playlist.play(index < count - 1 ? index + 1 : index - 1);
   }
   playlist.remove(index);
+  return true;
 }
 
-// ---------- 移動 ----------
+// ---------- Moving ----------
 
 async function runMove(from, to) {
   let result;
@@ -118,8 +177,8 @@ async function runMove(from, to) {
   } catch (err) {
     return { ok: false, detail: String(err) };
   }
-  if (!result || result.status !== 0) {
-    return { ok: false, detail: result ? String(result.stderr || "").trim() : "" };
+  if (result.status !== 0) {
+    return { ok: false, detail: String(result.stderr || "").trim() };
   }
   if (!file.exists(to) || file.exists(from)) {
     return { ok: false, detail: "" };
@@ -127,70 +186,102 @@ async function runMove(from, to) {
   return { ok: true };
 }
 
+function failureMessage(prefix, result) {
+  return prefix + (result.detail ? ": " + result.detail : "");
+}
+
 async function moveCurrentTo(slot) {
-  if (busy) return;
+  if (busy) {
+    core.osd("Still moving the previous file, please wait");
+    return;
+  }
   const cfg = slotConfig(slot);
   if (!cfg.dir) {
-    osd("尚未設定資料夾 " + slot + "，請到 外掛 選單選擇「設定資料夾 " + slot + "…」");
+    core.osd("Folder " + slot + " is not set. Use Plugin > Set Folder " + slot + "…");
     return;
   }
   if (!isDirectory(cfg.dir)) {
-    osd("找不到資料夾：" + cfg.dir);
+    core.osd("Folder not found: " + cfg.dir);
     return;
   }
   const from = currentFilePath();
   if (!from) {
-    osd("目前沒有可移動的本機影片");
+    core.osd("No local file is playing");
     return;
   }
   if (!file.exists(from)) {
-    osd("找不到原始檔案，可能已被移動");
+    core.osd("The file is no longer at its original location");
     return;
   }
-  if (stripTrailingSlash(dirname(from)) === cfg.dir) {
-    osd("影片已經在「" + cfg.label + "」裡了");
-    return;
-  }
-  const to = uniqueTarget(cfg.dir, basename(from));
-  if (!to) {
-    osd("目的地有太多同名檔案，未移動");
-    return;
-  }
+  const index = playlistPos();
 
   busy = true;
   try {
-    const result = await runMove(from, to);
-    if (!result.ok) {
-      console.error("move failed: " + from + " -> " + to + " " + (result.detail || ""));
-      osd("移動失敗" + (result.detail ? "：" + result.detail : ""));
+    if (await isSameDirectory(dirname(from), cfg.dir)) {
+      core.osd("Already in \"" + cfg.label + "\"");
       return;
     }
-    lastMove = { from, to };
-    osd("已移動到「" + cfg.label + "」：" + basename(to));
-    try {
-      advanceAfterMove(from);
-    } catch (err) {
-      console.error("advance failed: " + err);
+    const to = uniqueTarget(cfg.dir, basename(from));
+    if (!to) {
+      core.osd("Too many files with the same name in the destination");
+      return;
     }
+    const result = await runMove(from, to);
+    if (!result.ok) {
+      console.error("Move failed: " + from + " -> " + to + " " + result.detail);
+      core.osd(failureMessage("Move failed", result));
+      return;
+    }
+    lastMove = { from, to, index };
+
+    let advanced = false;
+    try {
+      advanced = advanceAfterMove(from, index);
+    } catch (err) {
+      console.error("Playlist update failed: " + err);
+    }
+    core.osd(
+      "Moved to \"" + cfg.label + "\": " + basename(to) +
+        (advanced ? "" : " (playlist was not updated)")
+    );
   } finally {
     busy = false;
   }
 }
 
-async function undoLastMove() {
-  if (busy) return;
-  if (!lastMove) {
-    osd("沒有可復原的移動");
+/** Puts a restored file back at its old playlist position and plays it. */
+function restoreToPlaylist(path, originalIndex) {
+  if (core.status.idle) {
+    core.open(path);
     return;
   }
-  const { from, to } = lastMove;
+  const count = playlistCount();
+  if (originalIndex >= 0 && originalIndex < count) {
+    playlist.add(path, originalIndex);
+    playlist.play(originalIndex);
+  } else {
+    playlist.add(path, -1); // -1 appends
+    playlist.play(count);
+  }
+}
+
+async function undoLastMove() {
+  if (busy) {
+    core.osd("Still moving the previous file, please wait");
+    return;
+  }
+  if (!lastMove) {
+    core.osd("Nothing to undo");
+    return;
+  }
+  const { from, to, index } = lastMove;
   if (!file.exists(to)) {
-    osd("找不到剛才移動的檔案，無法復原");
+    core.osd("The moved file is gone, cannot undo");
     lastMove = null;
     return;
   }
   if (file.exists(from)) {
-    osd("原位置已有同名檔案，無法復原");
+    core.osd("A file with the same name is at the original location, cannot undo");
     return;
   }
 
@@ -198,117 +289,116 @@ async function undoLastMove() {
   try {
     const result = await runMove(to, from);
     if (!result.ok) {
-      osd("復原失敗" + (result.detail ? "：" + result.detail : ""));
+      core.osd(failureMessage("Undo failed", result));
       return;
     }
     lastMove = null;
-    osd("已復原：" + basename(from));
+    core.osd("Restored: " + basename(from));
     try {
-      // 把影片放回播放清單並回到這一部
-      if (core.status.idle) {
-        core.open(from);
-      } else {
-        const index = Math.max(0, playlist.list().findIndex((item) => item.isPlaying));
-        playlist.add(from, index);
-        playlist.play(index);
-      }
+      restoreToPlaylist(from, index);
     } catch (err) {
-      console.error("re-add failed: " + err);
+      console.error("Could not put the file back in the playlist: " + err);
     }
   } finally {
     busy = false;
   }
 }
 
-// ---------- 畫面上的按鈕 ----------
+// ---------- On-screen buttons ----------
 
-let overlayLoaded = false;
+let overlayRequested = false;
+let overlayReady = false;
 
-function pushConfig() {
-  if (!overlayLoaded) return;
+/** Sends labels to the buttons, and shows or hides them per the preference. */
+function refreshOverlay() {
+  if (!overlayReady) return;
+  const visible = buttonsEnabled();
+  // A clickable overlay makes IINA hit-test it on every mouse event, so turn
+  // that off together with the buttons.
+  overlay.setClickable(visible);
+  if (!visible) {
+    overlay.hide();
+    return;
+  }
   const payload = {
-    visible: preferences.get("showButtons") !== false,
     slots: SLOTS.map((slot) => {
       const cfg = slotConfig(slot);
       return { slot, label: cfg.label, configured: !!cfg.dir };
     }),
   };
-  // 編碼成純文字再送出，避免資料夾名稱中的特殊符號在傳遞時出錯
+  // Sent as percent-encoded text: IINA passes objects through a template
+  // literal, which breaks on a backtick or "${" in a folder name.
   overlay.postMessage("config", encodeURIComponent(JSON.stringify(payload)));
+  overlay.show();
 }
 
-function registerOverlayHandlers() {
+function loadOverlay() {
+  if (overlayRequested) return;
+  overlay.loadFile("overlay.html"); // throws until the player window exists
+  overlayRequested = true;
+}
+
+function tryLoadOverlay() {
+  try {
+    loadOverlay();
+  } catch (err) {
+    // The window is not ready yet; "iina.window-loaded" will call this again.
+  }
+}
+
+event.on("iina.window-loaded", tryLoadOverlay);
+// The window may already be open when the plugin is enabled or reloaded.
+tryLoadOverlay();
+
+// IINA ignores overlay calls made before the page has finished loading, so
+// message handlers are registered here instead of right after loadFile.
+event.on("iina.plugin-overlay-loaded", () => {
+  if (!overlayRequested) return;
+  overlayReady = true;
   overlay.onMessage("move", (slot) => {
     const n = Number(slot);
     if (SLOTS.includes(n)) moveCurrentTo(n);
   });
-  overlay.onMessage("ready", () => pushConfig());
-}
-
-function initOverlay() {
-  if (overlayLoaded) return;
-  overlay.loadFile("overlay.html");
-  overlayLoaded = true;
-  overlay.setClickable(true);
-  overlay.show();
-  registerOverlayHandlers();
-}
-
-event.on("iina.window-loaded", () => {
-  try {
-    initOverlay();
-  } catch (err) {
-    console.error("overlay init failed: " + err);
-  }
+  refreshOverlay();
 });
 
-// 外掛在視窗開啟後才被啟用（或重新載入）時，視窗載入事件不會再來，所以這裡先試一次
-try {
-  initOverlay();
-} catch (err) {
-  // 視窗還沒準備好，等上面的事件即可
-}
+// Pick up preference changes when a file loads or when focus returns from the
+// Settings window.
+event.on("iina.file-loaded", refreshOverlay);
+event.on("iina.window-main.changed", refreshOverlay);
 
-event.on("iina.plugin-overlay-loaded", () => {
-  if (!overlayLoaded) return;
-  // 頁面載入完成後再註冊一次，確保訊息處理一定生效
-  registerOverlayHandlers();
-  overlay.show();
-  pushConfig();
-});
-
-// 換檔、或從設定視窗切回播放視窗時，更新按鈕文字
-event.on("iina.file-loaded", () => pushConfig());
-event.on("iina.window-main.changed", () => pushConfig());
-
-// ---------- 選單與快速鍵 ----------
+// ---------- Menu and shortcuts ----------
 
 async function chooseDir(slot) {
   let chosen;
   try {
-    chosen = await utils.chooseFile("選擇資料夾 " + slot, { chooseDir: true });
+    chosen = await utils.chooseFile("Choose folder " + slot, { chooseDir: true });
   } catch (err) {
     return;
   }
   if (!chosen || typeof chosen !== "string") return;
-  preferences.set("dir" + slot, stripTrailingSlash(chosen));
-  if (typeof preferences.sync === "function") preferences.sync();
-  pushConfig();
-  osd("資料夾 " + slot + "：" + chosen);
+  preferences.set("dir" + slot, normalizeSlashes(chosen));
+  preferences.sync();
+  refreshOverlay();
+  core.osd("Folder " + slot + ": " + chosen);
 }
 
 function toggleButtons() {
-  const next = preferences.get("showButtons") === false;
+  const next = !buttonsEnabled();
   preferences.set("showButtons", next);
-  if (typeof preferences.sync === "function") preferences.sync();
-  pushConfig();
-  osd(next ? "已顯示分類按鈕" : "已隱藏分類按鈕");
+  preferences.sync();
+  refreshOverlay();
+  core.osd(next ? "Sort buttons shown" : "Sort buttons hidden");
 }
 
-menu.addItem(menu.item("移動到資料夾 1", () => moveCurrentTo(1), { keyBinding: "Ctrl+1" }));
-menu.addItem(menu.item("移動到資料夾 2", () => moveCurrentTo(2), { keyBinding: "Ctrl+2" }));
-menu.addItem(menu.item("復原上次移動", () => undoLastMove(), { keyBinding: "Ctrl+z" }));
+SLOTS.forEach((slot) => {
+  menu.addItem(
+    menu.item("Move to Folder " + slot, () => moveCurrentTo(slot), { keyBinding: "Ctrl+" + slot })
+  );
+});
+menu.addItem(menu.item("Undo Last Move", () => undoLastMove(), { keyBinding: "Ctrl+z" }));
 menu.addItem(menu.separator());
-menu.addItem(menu.item("設定資料夾 1…", () => chooseDir(1)));
-menu.addItem(menu.item("設定資料夾 2…", () => chooseDir(2)));
-menu.addItem(menu.item("顯示／隱藏畫面上的按鈕", () => toggleButtons()));
+SLOTS.forEach((slot) => {
+  menu.addItem(menu.item("Set Folder " + slot + "…", () => chooseDir(slot)));
+});
+menu.addItem(menu.item("Show/Hide On-Screen Buttons", () => toggleButtons()));

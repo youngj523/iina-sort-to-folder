@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <style>
@@ -10,7 +10,7 @@
         margin: 6px 0;
       }
       .row label {
-        flex: 0 0 72px;
+        flex: 0 0 88px;
       }
       .row input[type="text"] {
         flex: 1;
@@ -20,40 +20,40 @@
   </head>
   <body>
     <div class="pref-section">
-      <h3>資料夾 1</h3>
+      <h3>Folder 1</h3>
       <div class="row">
-        <label for="dir1">位置</label>
-        <input id="dir1" type="text" data-pref-key="dir1" placeholder="例如 ~/Movies/保留" />
+        <label for="dir1">Location</label>
+        <input id="dir1" type="text" data-pref-key="dir1" placeholder="e.g. ~/Movies/Keep" />
       </div>
       <div class="row">
-        <label for="label1">按鈕文字</label>
-        <input id="label1" type="text" data-pref-key="label1" placeholder="留空則顯示資料夾名稱" />
+        <label for="label1">Button label</label>
+        <input id="label1" type="text" data-pref-key="label1" placeholder="Leave empty to use the folder name" />
       </div>
     </div>
 
     <div class="pref-section">
-      <h3>資料夾 2</h3>
+      <h3>Folder 2</h3>
       <div class="row">
-        <label for="dir2">位置</label>
-        <input id="dir2" type="text" data-pref-key="dir2" placeholder="例如 ~/Movies/之後再看" />
+        <label for="dir2">Location</label>
+        <input id="dir2" type="text" data-pref-key="dir2" placeholder="e.g. ~/Movies/Watch Later" />
       </div>
       <div class="row">
-        <label for="label2">按鈕文字</label>
-        <input id="label2" type="text" data-pref-key="label2" placeholder="留空則顯示資料夾名稱" />
+        <label for="label2">Button label</label>
+        <input id="label2" type="text" data-pref-key="label2" placeholder="Leave empty to use the folder name" />
       </div>
     </div>
 
     <div class="pref-section">
       <div class="row">
         <input id="showButtons" type="checkbox" data-type="bool" data-pref-key="showButtons" />
-        <label for="showButtons" style="flex: 1">在播放畫面上顯示按鈕</label>
+        <label for="showButtons" style="flex: 1">Show the buttons on the video</label>
       </div>
     </div>
 
     <p class="pref-help">
-      位置請填完整路徑（以 <code>/</code> 或 <code>~/</code> 開頭），資料夾必須已經存在。<br />
-      不想手動輸入的話，播放影片時到選單列的「外掛」選擇「設定資料夾 1…／2…」，就能用視窗點選資料夾。<br />
-      快速鍵：Ctrl+1、Ctrl+2 移動到對應資料夾，Ctrl+Z 復原上次移動。
+      Enter a full path starting with <code>/</code> or <code>~/</code>. The folder must already exist.<br />
+      To pick a folder in a dialog instead, play a video and choose Plugin &gt; Set Folder 1… or Set Folder 2… in the menu bar.<br />
+      Shortcuts: Ctrl+1 and Ctrl+2 move the current video, Ctrl+Z undoes the last move.
     </p>
   </body>
 </html>

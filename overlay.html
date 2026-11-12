@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <style>
@@ -9,7 +9,7 @@
         padding: 0;
         background: transparent;
         overflow: hidden;
-        font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Helvetica Neue", sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
         -webkit-user-select: none;
         user-select: none;
       }
@@ -22,10 +22,6 @@
         display: flex;
         flex-direction: column;
         gap: 10px;
-      }
-
-      #buttons.hidden {
-        display: none;
       }
 
       button {
@@ -66,15 +62,14 @@
     </style>
   </head>
   <body>
-    <!-- 只有帶 data-clickable 的元素本身可以接收點擊，所以按鈕內不放子元素 -->
-    <div id="buttons" class="hidden">
+    <!-- IINA only passes clicks to the element that carries data-clickable
+         itself, so the buttons must not contain child elements. -->
+    <div id="buttons">
       <button id="btn1" data-clickable data-slot="1"></button>
       <button id="btn2" data-clickable data-slot="2"></button>
     </div>
 
     <script>
-      const container = document.getElementById("buttons");
-
       function applyConfig(raw) {
         let config;
         try {
@@ -82,15 +77,14 @@
         } catch (err) {
           return;
         }
-        container.classList.toggle("hidden", !config.visible);
         (config.slots || []).forEach((item) => {
           const button = document.getElementById("btn" + item.slot);
           if (!button) return;
           button.classList.toggle("unset", !item.configured);
           button.textContent = item.configured
             ? "→ " + item.label
-            : "未設定資料夾 " + item.slot;
-          button.title = item.configured ? "移動到 " + item.label : "";
+            : "Folder " + item.slot + " not set";
+          button.title = item.configured ? "Move to " + item.label : "";
         });
       }
 
@@ -102,7 +96,6 @@
       });
 
       iina.onMessage("config", applyConfig);
-      iina.postMessage("ready", 1);
     </script>
   </body>
 </html>

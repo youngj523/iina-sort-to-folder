@@ -1,15 +1,14 @@
 // Sort to Folder — IINA plugin
-// Shows two buttons on the video that move the file being played into one of
-// two folders chosen in the plugin preferences, then plays the next file.
+// Shows a button per folder on the video that moves the file being played into
+// that folder (up to ten, chosen in the plugin preferences), then plays the next file.
 
 const { core, console, event, file, input, menu, mpv, overlay, playlist, preferences, utils } =
   iina;
 
-const SLOTS = [1, 2];
+const MAX_FOLDERS = 10;
 const MV = "/bin/mv";
 const STAT = "/usr/bin/stat";
 const MAX_RENAME_ATTEMPTS = 1000;
-const SHORTCUT_KEYS = SLOTS.map((slot) => "key" + slot).concat("keyUndo");
 const POSITIONS = [
   "top-left",
   "top-right",
@@ -124,6 +123,30 @@ function slotConfig(slot) {
     dir,
     label: customLabel || (dir ? basename(dir) || dir : ""),
   };
+}
+
+/**
+ * How many folders are in use. A stored count of 0 means it was never set;
+ * installations from before the count existed had two folders, so both are
+ * kept if the second one is configured.
+ */
+function folderCount() {
+  const stored = Math.floor(Number(preferences.get("folderCount")));
+  if (stored >= 1) return Math.min(MAX_FOLDERS, stored);
+  return resolveDir(preferences.get("dir2")) ? 2 : 1;
+}
+
+/** Slot numbers of the folders in use: 1 up to the folder count. */
+function activeSlots() {
+  const slots = [];
+  for (let slot = 1; slot <= folderCount(); slot++) slots.push(slot);
+  return slots;
+}
+
+function shortcutKeys() {
+  return activeSlots()
+    .map((slot) => "key" + slot)
+    .concat("keyUndo");
 }
 
 function buttonsEnabled() {
@@ -353,7 +376,7 @@ function refreshOverlay() {
   }
   const payload = {
     position: buttonPosition(),
-    slots: SLOTS.map((slot) => {
+    slots: activeSlots().map((slot) => {
       const cfg = slotConfig(slot);
       return { slot, label: cfg.label, configured: !!cfg.dir };
     }),
@@ -389,7 +412,7 @@ event.on("iina.plugin-overlay-loaded", () => {
   overlayReady = true;
   overlay.onMessage("move", (slot) => {
     const n = Number(slot);
-    if (SLOTS.includes(n)) moveCurrentTo(n);
+    if (activeSlots().includes(n)) moveCurrentTo(n);
   });
   refreshOverlay();
 });
@@ -440,7 +463,9 @@ function shortcutOptions(key) {
 }
 
 function shortcutSignature() {
-  return SHORTCUT_KEYS.map(shortcut).join("\n");
+  return shortcutKeys()
+    .map((name) => name + "=" + shortcut(name))
+    .join("\n");
 }
 
 let builtShortcuts = null;
@@ -470,7 +495,7 @@ function runShortcutAction(name, action) {
 function bindKeys(actions) {
   if (!input || typeof input.onKeyDown !== "function") return; // older IINA
   Object.keys(keyActions).forEach((key) => delete keyActions[key]);
-  SHORTCUT_KEYS.forEach((name) => {
+  shortcutKeys().forEach((name) => {
     const binding = shortcut(name);
     if (!binding) return;
     const key = input.normalizeKeyCode(binding);
@@ -493,21 +518,22 @@ function bindKeys(actions) {
 }
 
 function buildMenu() {
+  const slots = activeSlots();
   const actions = {};
-  SLOTS.forEach((slot) => {
+  slots.forEach((slot) => {
     actions["key" + slot] = () => runShortcutAction("key" + slot, () => moveCurrentTo(slot));
   });
   actions.keyUndo = () => runShortcutAction("keyUndo", () => undoLastMove());
 
   menu.removeAllItems();
-  SLOTS.forEach((slot) => {
+  slots.forEach((slot) => {
     menu.addItem(
       menu.item("Move to Folder " + slot, actions["key" + slot], shortcutOptions("key" + slot))
     );
   });
   menu.addItem(menu.item("Undo Last Move", actions.keyUndo, shortcutOptions("keyUndo")));
   menu.addItem(menu.separator());
-  SLOTS.forEach((slot) => {
+  slots.forEach((slot) => {
     menu.addItem(menu.item("Set Folder " + slot + "…", () => chooseDir(slot)));
   });
   menu.addItem(menu.item("Show/Hide On-Screen Buttons", () => toggleButtons()));

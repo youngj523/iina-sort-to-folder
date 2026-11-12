@@ -70,6 +70,15 @@
         transform: scale(0.96);
       }
 
+      #buttons.compact {
+        gap: 5px;
+      }
+      #buttons.compact button {
+        padding: 5px 10px;
+        font-size: 12px;
+        border-radius: 7px;
+      }
+
       button.unset {
         font-weight: 400;
         opacity: 0.45;
@@ -78,14 +87,16 @@
     </style>
   </head>
   <body>
-    <!-- IINA only passes clicks to the element that carries data-clickable
-         itself, so the buttons must not contain child elements. -->
-    <div id="buttons" data-position="middle-right">
-      <button id="btn1" data-clickable data-slot="1"></button>
-      <button id="btn2" data-clickable data-slot="2"></button>
-    </div>
+    <!-- The buttons are created by the script, one per folder. IINA only
+         passes clicks to the element that carries data-clickable itself, so a
+         button must not contain child elements. -->
+    <div id="buttons" data-position="middle-right"></div>
 
     <script>
+      // With more buttons than this, use the smaller style so they fit the window.
+      const COMPACT_ABOVE = 5;
+      const container = document.getElementById("buttons");
+
       function applyConfig(raw) {
         let config;
         try {
@@ -94,11 +105,20 @@
           return;
         }
         if (config.position) {
-          document.getElementById("buttons").dataset.position = config.position;
+          container.dataset.position = config.position;
         }
-        (config.slots || []).forEach((item) => {
+        const slots = config.slots || [];
+        container.classList.toggle("compact", slots.length > COMPACT_ABOVE);
+        // Rebuild only when the set of folders changes, so a refresh does not
+        // replace a button while it is being clicked.
+        const wanted = slots.map((item) => item.slot).join(",");
+        if (container.dataset.slots !== wanted) {
+          container.textContent = "";
+          slots.forEach((item) => container.appendChild(createButton(item.slot)));
+          container.dataset.slots = wanted;
+        }
+        slots.forEach((item) => {
           const button = document.getElementById("btn" + item.slot);
-          if (!button) return;
           button.classList.toggle("unset", !item.configured);
           button.textContent = item.configured
             ? "→ " + item.label
@@ -107,12 +127,16 @@
         });
       }
 
-      document.querySelectorAll("button[data-slot]").forEach((button) => {
+      function createButton(slot) {
+        const button = document.createElement("button");
+        button.id = "btn" + slot;
+        button.dataset.clickable = "";
         button.addEventListener("click", () => {
-          iina.postMessage("move", Number(button.dataset.slot));
+          iina.postMessage("move", slot);
           button.blur();
         });
-      });
+        return button;
+      }
 
       iina.onMessage("config", applyConfig);
     </script>

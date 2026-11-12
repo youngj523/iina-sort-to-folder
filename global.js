@@ -9,7 +9,7 @@ const { console, preferences, utils } = iina;
 const POLL_INTERVAL_MS = 400;
 // A request left over from an earlier session must not open a dialog on launch.
 const REQUEST_MAX_AGE_MS = 5000;
-const SLOTS = [1, 2];
+const MAX_FOLDERS = 10;
 
 /** Parses "slot:timestamp" and returns the slot if the request is fresh. */
 function pendingSlot() {
@@ -19,7 +19,7 @@ function pendingSlot() {
   const [slotText, timeText] = request.split(":");
   const slot = Number(slotText);
   const age = Date.now() - Number(timeText);
-  if (!SLOTS.includes(slot) || !(age >= 0 && age <= REQUEST_MAX_AGE_MS)) return null;
+  if (!(Number.isInteger(slot) && slot >= 1 && slot <= MAX_FOLDERS) || !(age >= 0 && age <= REQUEST_MAX_AGE_MS)) return null;
   return slot;
 }
 

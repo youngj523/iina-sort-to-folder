@@ -27,32 +27,20 @@
       input.shortcut {
         cursor: pointer;
       }
+      .folder[hidden] {
+        display: none;
+      }
     </style>
   </head>
   <body>
-    <div class="pref-section">
-      <h3>Folder 1</h3>
-      <div class="row">
-        <label for="dir1">Location</label>
-        <input id="dir1" type="text" data-pref-key="dir1" placeholder="e.g. ~/Movies/Keep" />
-        <button type="button" data-choose="1">Choose…</button>
-      </div>
-      <div class="row">
-        <label for="label1">Button label</label>
-        <input id="label1" type="text" data-pref-key="label1" placeholder="Leave empty to use the folder name" />
-      </div>
-    </div>
+    <!-- One section per folder is generated here by the script below. -->
+    <div id="folders"></div>
 
     <div class="pref-section">
-      <h3>Folder 2</h3>
       <div class="row">
-        <label for="dir2">Location</label>
-        <input id="dir2" type="text" data-pref-key="dir2" placeholder="e.g. ~/Movies/Watch Later" />
-        <button type="button" data-choose="2">Choose…</button>
-      </div>
-      <div class="row">
-        <label for="label2">Button label</label>
-        <input id="label2" type="text" data-pref-key="label2" placeholder="Leave empty to use the folder name" />
+        <button type="button" id="addFolder">Add Folder</button>
+        <button type="button" id="removeFolder">Remove Last Folder</button>
+        <small id="folderCountNote" class="secondary"></small>
       </div>
     </div>
 
@@ -76,32 +64,121 @@
     </div>
 
     <div class="pref-section">
-      <h3>Shortcuts</h3>
-      <div class="row">
-        <label for="key1">Move to folder 1</label>
-        <input id="key1" class="shortcut" type="text" readonly data-pref-key="key1" placeholder="None" />
-        <button type="button" data-clear="key1">Clear</button>
-      </div>
-      <div class="row">
-        <label for="key2">Move to folder 2</label>
-        <input id="key2" class="shortcut" type="text" readonly data-pref-key="key2" placeholder="None" />
-        <button type="button" data-clear="key2">Clear</button>
-      </div>
+      <h3>Undo</h3>
       <div class="row">
         <label for="keyUndo">Undo last move</label>
-        <input id="keyUndo" class="shortcut" type="text" readonly data-pref-key="keyUndo" placeholder="None" />
+        <input id="keyUndo" class="shortcut" type="text" readonly data-key="keyUndo" placeholder="None" />
         <button type="button" data-clear="keyUndo">Clear</button>
       </div>
     </div>
 
     <p class="pref-help">
-      Folder locations: click Choose… to pick a folder, or enter a full path starting with <code>/</code> or <code>~/</code>. The folder must already exist.<br />
+      Folders: start with one and click Add Folder for more, up to 10. Each folder gets its own button on the video and its own shortcut.
+      Removing a folder only hides it; its settings come back if you add it again.<br />
+      Location: click Choose… to pick a folder, or enter a full path starting with <code>/</code> or <code>~/</code>. The folder must already exist.<br />
       Shortcuts: click a field, then press the key combination you want. Press Esc to cancel, or use Clear to remove the shortcut.
       Combinations that IINA or macOS already use, such as Command+Q, cannot be recorded.<br />
       Changes take effect when you return to the player window.
     </p>
 
     <script>
+      // Wrapped in a function: IINA injects its own script into this page that
+      // declares a top-level `preferences`, and a second declaration would break it.
+      (function () {
+      const { preferences } = window.iina;
+      const MAX_FOLDERS = 10;
+
+      // ---------- Preference binding ----------
+
+      // Fields with data-key are bound here instead of through IINA's
+      // data-pref-key binding, because the folder sections are generated.
+      function bindField(input) {
+        const key = input.dataset.key;
+        preferences.get(key, (value) => {
+          if (typeof value === "string") input.value = value;
+        });
+        input.addEventListener("change", () => preferences.set(key, input.value));
+      }
+
+      function save(input, value) {
+        input.value = value;
+        input.dispatchEvent(new Event("change"));
+      }
+
+      // ---------- Folder sections ----------
+
+      function folderSectionHTML(slot) {
+        return (
+          '<h3>Folder ' + slot + '</h3>' +
+          '<div class="row">' +
+          '<label for="dir' + slot + '">Location</label>' +
+          '<input id="dir' + slot + '" type="text" data-key="dir' + slot + '" placeholder="e.g. ~/Movies/Keep" />' +
+          '<button type="button" data-choose="' + slot + '">Choose…</button>' +
+          '</div>' +
+          '<div class="row">' +
+          '<label for="label' + slot + '">Button label</label>' +
+          '<input id="label' + slot + '" type="text" data-key="label' + slot + '" placeholder="Leave empty to use the folder name" />' +
+          '</div>' +
+          '<div class="row">' +
+          '<label for="key' + slot + '">Shortcut</label>' +
+          '<input id="key' + slot + '" class="shortcut" type="text" readonly data-key="key' + slot + '" placeholder="None" />' +
+          '<button type="button" data-clear="key' + slot + '">Clear</button>' +
+          '</div>'
+        );
+      }
+
+      const foldersRoot = document.getElementById("folders");
+      for (let slot = 1; slot <= MAX_FOLDERS; slot++) {
+        const section = document.createElement("div");
+        section.className = "pref-section folder";
+        section.dataset.slot = String(slot);
+        section.hidden = slot > 1;
+        section.innerHTML = folderSectionHTML(slot);
+        foldersRoot.appendChild(section);
+      }
+
+      document.querySelectorAll("input[data-key]").forEach(bindField);
+
+      // ---------- Number of folders ----------
+
+      let folderCount = 1;
+
+      function showFolderCount(count) {
+        folderCount = Math.min(MAX_FOLDERS, Math.max(1, count));
+        document.querySelectorAll(".folder").forEach((section) => {
+          section.hidden = Number(section.dataset.slot) > folderCount;
+        });
+        document.getElementById("addFolder").disabled = folderCount >= MAX_FOLDERS;
+        document.getElementById("removeFolder").disabled = folderCount <= 1;
+        document.getElementById("folderCountNote").textContent =
+          folderCount + " of " + MAX_FOLDERS;
+      }
+
+      function setFolderCount(count) {
+        showFolderCount(count);
+        preferences.set("folderCount", folderCount);
+      }
+
+      // A stored count of 0 means it was never set. Installations from before
+      // the count existed had two folders, so keep both if the second is in use.
+      preferences.get("folderCount", (stored) => {
+        const count = Number(stored);
+        if (count >= 1) {
+          showFolderCount(count);
+          return;
+        }
+        preferences.get("dir2", (dir2) => showFolderCount(dir2 ? 2 : 1));
+      });
+
+      document.getElementById("addFolder").addEventListener("click", () => {
+        setFolderCount(folderCount + 1);
+      });
+      document.getElementById("removeFolder").addEventListener("click", () => {
+        setFolderCount(folderCount - 1);
+      });
+
+      // ---------- Shortcut recorder ----------
+
       // IINA turns a plugin shortcut into a menu key equivalent without any
       // normalization, so the text must be exact: modifiers spelled Ctrl, Alt,
       // Shift, Meta, joined with "+", followed by one character or one of the
@@ -158,12 +235,6 @@
         return parts.join("+");
       }
 
-      function save(input, value) {
-        input.value = value;
-        // IINA's preference binding stores the value on "change".
-        input.dispatchEvent(new Event("change"));
-      }
-
       document.querySelectorAll("input.shortcut").forEach((input) => {
         input.addEventListener("focus", () => {
           input.placeholder = "Press keys…";
@@ -186,6 +257,12 @@
         });
       });
 
+      document.querySelectorAll("button[data-clear]").forEach((button) => {
+        button.addEventListener("click", () => {
+          save(document.getElementById(button.dataset.clear), "");
+        });
+      });
+
       // ---------- Folder picker ----------
 
       // This page cannot open a folder dialog. A request is written to the
@@ -204,7 +281,7 @@
             clearInterval(pickTimer);
             return;
           }
-          window.iina.preferences.get("dir" + slot, (value) => {
+          preferences.get("dir" + slot, (value) => {
             if (typeof value !== "string" || value === field.value) return;
             if (document.activeElement === field) return; // being typed in
             field.value = value;
@@ -216,16 +293,11 @@
       document.querySelectorAll("button[data-choose]").forEach((button) => {
         button.addEventListener("click", () => {
           const slot = button.dataset.choose;
-          window.iina.preferences.set("pickRequest", slot + ":" + Date.now());
+          preferences.set("pickRequest", slot + ":" + Date.now());
           watchFolder(slot);
         });
       });
-
-      document.querySelectorAll("button[data-clear]").forEach((button) => {
-        button.addEventListener("click", () => {
-          save(document.getElementById(button.dataset.clear), "");
-        });
-      });
+      })();
     </script>
   </body>
 </html>

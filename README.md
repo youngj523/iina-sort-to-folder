@@ -1,7 +1,7 @@
 # Sort to Folder (IINA plugin)
 
 An [IINA](https://iina.io) plugin for sorting a batch of videos while you watch them.
-Two buttons appear on the right side of the video. Click one to move **the video being played** into the matching folder and continue with the next one.
+Two buttons appear on the video. Click one to move **the video being played** into the matching folder and continue with the next one.
 
 ## Features
 
@@ -11,10 +11,10 @@ Two buttons appear on the right side of the video. Click one to move **the video
 - The last move can be undone: the file goes back to its original location and playlist position.
 - Each player window has its own buttons, so several windows can be sorted at the same time.
 
-| Action | Button | Shortcut |
+| Action | Button | Default shortcut |
 | --- | --- | --- |
-| Move to Folder 1 | Upper button on the right side of the video | Ctrl+1 |
-| Move to Folder 2 | Lower button on the right side of the video | Ctrl+2 |
+| Move to Folder 1 | Upper button | Ctrl+1 |
+| Move to Folder 2 | Lower button | Ctrl+2 |
 | Undo Last Move | Menu: Plugin > Undo Last Move | Ctrl+Z |
 
 ## Installation
@@ -35,6 +35,13 @@ Use either way:
 - **Type the path**: in Settings > Plugins > Sort to Folder > Preferences, enter a full path such as `~/Movies/Keep`.
 
 The folders must already exist. The plugin does not create them.
+
+## Customizing
+
+Both settings are in Settings > Plugins > Sort to Folder > Preferences and take effect when you return to the player window.
+
+- **Button position**: top, middle or bottom, on the left or right side of the video. The default is middle right.
+- **Shortcuts**: each of the three shortcuts can be changed. Write the modifiers and the key joined with `+`, for example `Ctrl+1`, `Alt+k` or `Meta+Shift+m`. The modifiers are `Ctrl`, `Alt` (Option), `Shift` and `Meta` (Command). Leave a field empty to have no shortcut.
 
 ## Usage
 

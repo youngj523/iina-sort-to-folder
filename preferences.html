@@ -9,8 +9,16 @@
         gap: 8px;
         margin: 6px 0;
       }
-      .row label {
-        flex: 0 0 88px;
+      .row > label {
+        flex: 0 0 120px;
+      }
+      .row > label.wide {
+        flex: 1;
+      }
+      .choices {
+        display: grid;
+        grid-template-columns: repeat(2, auto);
+        gap: 4px 16px;
       }
       .row input[type="text"] {
         flex: 1;
@@ -44,16 +52,46 @@
     </div>
 
     <div class="pref-section">
+      <h3>On-screen buttons</h3>
       <div class="row">
         <input id="showButtons" type="checkbox" data-type="bool" data-pref-key="showButtons" />
-        <label for="showButtons" style="flex: 1">Show the buttons on the video</label>
+        <label for="showButtons" class="wide">Show the buttons on the video</label>
+      </div>
+      <div class="row">
+        <label>Position</label>
+        <div class="choices">
+          <label><input type="radio" name="position" data-pref-key="position" value="top-left" /> Top left</label>
+          <label><input type="radio" name="position" data-pref-key="position" value="top-right" /> Top right</label>
+          <label><input type="radio" name="position" data-pref-key="position" value="middle-left" /> Middle left</label>
+          <label><input type="radio" name="position" data-pref-key="position" value="middle-right" /> Middle right</label>
+          <label><input type="radio" name="position" data-pref-key="position" value="bottom-left" /> Bottom left</label>
+          <label><input type="radio" name="position" data-pref-key="position" value="bottom-right" /> Bottom right</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="pref-section">
+      <h3>Shortcuts</h3>
+      <div class="row">
+        <label for="key1">Move to folder 1</label>
+        <input id="key1" type="text" data-pref-key="key1" placeholder="e.g. Ctrl+1" />
+      </div>
+      <div class="row">
+        <label for="key2">Move to folder 2</label>
+        <input id="key2" type="text" data-pref-key="key2" placeholder="e.g. Ctrl+2" />
+      </div>
+      <div class="row">
+        <label for="keyUndo">Undo last move</label>
+        <input id="keyUndo" type="text" data-pref-key="keyUndo" placeholder="e.g. Ctrl+z" />
       </div>
     </div>
 
     <p class="pref-help">
-      Enter a full path starting with <code>/</code> or <code>~/</code>. The folder must already exist.<br />
+      Folder locations: enter a full path starting with <code>/</code> or <code>~/</code>. The folder must already exist.
       To pick a folder in a dialog instead, play a video and choose Plugin &gt; Set Folder 1… or Set Folder 2… in the menu bar.<br />
-      Shortcuts: Ctrl+1 and Ctrl+2 move the current video, Ctrl+Z undoes the last move.
+      Shortcuts: write the modifiers and the key joined with <code>+</code>, for example <code>Ctrl+1</code>, <code>Alt+k</code> or <code>Meta+Shift+m</code>.
+      Modifiers are <code>Ctrl</code>, <code>Alt</code> (Option), <code>Shift</code> and <code>Meta</code> (Command). Leave a field empty for no shortcut.<br />
+      Changes take effect when you return to the player window.
     </p>
   </body>
 </html>

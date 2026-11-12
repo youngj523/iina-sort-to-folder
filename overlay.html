@@ -16,12 +16,28 @@
 
       #buttons {
         position: fixed;
-        right: 16px;
-        top: 50%;
-        transform: translateY(-50%);
         display: flex;
         flex-direction: column;
         gap: 10px;
+      }
+
+      /* Top and bottom offsets keep the buttons clear of IINA's title bar and
+         playback controls. */
+      #buttons[data-position$="-left"] {
+        left: 16px;
+      }
+      #buttons[data-position$="-right"] {
+        right: 16px;
+      }
+      #buttons[data-position^="top-"] {
+        top: 56px;
+      }
+      #buttons[data-position^="middle-"] {
+        top: 50%;
+        transform: translateY(-50%);
+      }
+      #buttons[data-position^="bottom-"] {
+        bottom: 96px;
       }
 
       button {
@@ -64,7 +80,7 @@
   <body>
     <!-- IINA only passes clicks to the element that carries data-clickable
          itself, so the buttons must not contain child elements. -->
-    <div id="buttons">
+    <div id="buttons" data-position="middle-right">
       <button id="btn1" data-clickable data-slot="1"></button>
       <button id="btn2" data-clickable data-slot="2"></button>
     </div>
@@ -76,6 +92,9 @@
           config = JSON.parse(decodeURIComponent(raw));
         } catch (err) {
           return;
+        }
+        if (config.position) {
+          document.getElementById("buttons").dataset.position = config.position;
         }
         (config.slots || []).forEach((item) => {
           const button = document.getElementById("btn" + item.slot);

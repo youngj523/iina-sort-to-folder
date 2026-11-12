@@ -8,6 +8,16 @@ const SLOTS = [1, 2];
 const MV = "/bin/mv";
 const STAT = "/usr/bin/stat";
 const MAX_RENAME_ATTEMPTS = 1000;
+const SHORTCUT_KEYS = SLOTS.map((slot) => "key" + slot).concat("keyUndo");
+const POSITIONS = [
+  "top-left",
+  "top-right",
+  "middle-left",
+  "middle-right",
+  "bottom-left",
+  "bottom-right",
+];
+const DEFAULT_POSITION = "middle-right";
 
 let busy = false;
 let lastMove = null; // { from, to, index } — kept for "Undo Last Move"
@@ -117,6 +127,11 @@ function slotConfig(slot) {
 
 function buttonsEnabled() {
   return preferences.get("showButtons") !== false;
+}
+
+function buttonPosition() {
+  const value = preferences.get("position");
+  return POSITIONS.includes(value) ? value : DEFAULT_POSITION;
 }
 
 // ---------- Playlist ----------
@@ -321,6 +336,7 @@ function refreshOverlay() {
     return;
   }
   const payload = {
+    position: buttonPosition(),
     slots: SLOTS.map((slot) => {
       const cfg = slotConfig(slot);
       return { slot, label: cfg.label, configured: !!cfg.dir };
@@ -362,11 +378,6 @@ event.on("iina.plugin-overlay-loaded", () => {
   refreshOverlay();
 });
 
-// Pick up preference changes when a file loads or when focus returns from the
-// Settings window.
-event.on("iina.file-loaded", refreshOverlay);
-event.on("iina.window-main.changed", refreshOverlay);
-
 // ---------- Menu and shortcuts ----------
 
 async function chooseDir(slot) {
@@ -391,14 +402,53 @@ function toggleButtons() {
   core.osd(next ? "Sort buttons shown" : "Sort buttons hidden");
 }
 
-SLOTS.forEach((slot) => {
-  menu.addItem(
-    menu.item("Move to Folder " + slot, () => moveCurrentTo(slot), { keyBinding: "Ctrl+" + slot })
-  );
-});
-menu.addItem(menu.item("Undo Last Move", () => undoLastMove(), { keyBinding: "Ctrl+z" }));
-menu.addItem(menu.separator());
-SLOTS.forEach((slot) => {
-  menu.addItem(menu.item("Set Folder " + slot + "…", () => chooseDir(slot)));
-});
-menu.addItem(menu.item("Show/Hide On-Screen Buttons", () => toggleButtons()));
+function shortcut(key) {
+  return String(preferences.get(key) || "").trim();
+}
+
+/** Menu item options for a shortcut preference; an empty value means no shortcut. */
+function shortcutOptions(key) {
+  const binding = shortcut(key);
+  return binding ? { keyBinding: binding } : {};
+}
+
+function shortcutSignature() {
+  return SHORTCUT_KEYS.map(shortcut).join("\n");
+}
+
+let builtShortcuts = null;
+
+function buildMenu() {
+  menu.removeAllItems();
+  SLOTS.forEach((slot) => {
+    menu.addItem(
+      menu.item("Move to Folder " + slot, () => moveCurrentTo(slot), shortcutOptions("key" + slot))
+    );
+  });
+  menu.addItem(menu.item("Undo Last Move", () => undoLastMove(), shortcutOptions("keyUndo")));
+  menu.addItem(menu.separator());
+  SLOTS.forEach((slot) => {
+    menu.addItem(menu.item("Set Folder " + slot + "…", () => chooseDir(slot)));
+  });
+  menu.addItem(menu.item("Show/Hide On-Screen Buttons", () => toggleButtons()));
+  builtShortcuts = shortcutSignature();
+}
+
+/** Rebuilds the menu when a shortcut preference has changed. */
+function refreshMenu() {
+  if (shortcutSignature() === builtShortcuts) return;
+  buildMenu();
+  menu.forceUpdate();
+}
+
+buildMenu();
+
+// Pick up preference changes when a file loads or when focus returns from the
+// Settings window.
+function applyPreferences() {
+  refreshOverlay();
+  refreshMenu();
+}
+
+event.on("iina.file-loaded", applyPreferences);
+event.on("iina.window-main.changed", applyPreferences);

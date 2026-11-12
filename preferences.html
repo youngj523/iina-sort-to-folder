@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 6px 0;
+      }
+      .row label {
+        flex: 0 0 88px;
+      }
+      .row input[type="text"] {
+        flex: 1;
+        min-width: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="pref-section">
+      <h3>Folder 1</h3>
+      <div class="row">
+        <label for="dir1">Location</label>
+        <input id="dir1" type="text" data-pref-key="dir1" placeholder="e.g. ~/Movies/Keep" />
+      </div>
+      <div class="row">
+        <label for="label1">Button label</label>
+        <input id="label1" type="text" data-pref-key="label1" placeholder="Leave empty to use the folder name" />
+      </div>
+    </div>
+
+    <div class="pref-section">
+      <h3>Folder 2</h3>
+      <div class="row">
+        <label for="dir2">Location</label>
+        <input id="dir2" type="text" data-pref-key="dir2" placeholder="e.g. ~/Movies/Watch Later" />
+      </div>
+      <div class="row">
+        <label for="label2">Button label</label>
+        <input id="label2" type="text" data-pref-key="label2" placeholder="Leave empty to use the folder name" />
+      </div>
+    </div>
+
+    <div class="pref-section">
+      <div class="row">
+        <input id="showButtons" type="checkbox" data-type="bool" data-pref-key="showButtons" />
+        <label for="showButtons" style="flex: 1">Show the buttons on the video</label>
+      </div>
+    </div>
+
+    <p class="pref-help">
+      Enter a full path starting with <code>/</code> or <code>~/</code>. The folder must already exist.<br />
+      To pick a folder in a dialog instead, play a video and choose Plugin &gt; Set Folder 1… or Set Folder 2… in the menu bar.<br />
+      Shortcuts: Ctrl+1 and Ctrl+2 move the current video, Ctrl+Z undoes the last move.
+    </p>
+  </body>
+</html>

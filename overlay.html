@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Helvetica Neue", sans-serif;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      #buttons {
+        position: fixed;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      #buttons.hidden {
+        display: none;
+      }
+
+      button {
+        min-width: 112px;
+        max-width: 220px;
+        padding: 10px 14px;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 10px;
+        background: rgba(20, 20, 20, 0.5);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        opacity: 0.7;
+        cursor: pointer;
+        transition: opacity 0.15s, background 0.15s, transform 0.08s;
+      }
+
+      button:hover {
+        opacity: 1;
+        background: rgba(20, 20, 20, 0.78);
+      }
+
+      button:active {
+        transform: scale(0.96);
+      }
+
+      button.unset {
+        font-weight: 400;
+        opacity: 0.45;
+        border-style: dashed;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 只有帶 data-clickable 的元素本身可以接收點擊，所以按鈕內不放子元素 -->
+    <div id="buttons" class="hidden">
+      <button id="btn1" data-clickable data-slot="1"></button>
+      <button id="btn2" data-clickable data-slot="2"></button>
+    </div>
+
+    <script>
+      const container = document.getElementById("buttons");
+
+      function applyConfig(raw) {
+        let config;
+        try {
+          config = JSON.parse(decodeURIComponent(raw));
+        } catch (err) {
+          return;
+        }
+        container.classList.toggle("hidden", !config.visible);
+        (config.slots || []).forEach((item) => {
+          const button = document.getElementById("btn" + item.slot);
+          if (!button) return;
+          button.classList.toggle("unset", !item.configured);
+          button.textContent = item.configured
+            ? "→ " + item.label
+            : "未設定資料夾 " + item.slot;
+          button.title = item.configured ? "移動到 " + item.label : "";
+        });
+      }
+
+      document.querySelectorAll("button[data-slot]").forEach((button) => {
+        button.addEventListener("click", () => {
+          iina.postMessage("move", Number(button.dataset.slot));
+          button.blur();
+        });
+      });
+
+      iina.onMessage("config", applyConfig);
+      iina.postMessage("ready", 1);
+    </script>
+  </body>
+</html>

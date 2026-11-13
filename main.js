@@ -461,21 +461,89 @@ let builtShortcuts = null;
 // A menu shortcut loses to a key that IINA's own key bindings already use.
 // Listening with PRIORITY_HIGH runs the plugin's handler before those bindings,
 // and returning true stops IINA from handling the key as well.
+//
+// This cannot beat a binding that IINA shows in its own menus (for example
+// "0 add volume 2" becomes the key equivalent of Audio > Volume Up): macOS
+// hands the key to the menu bar before any window sees it, and IINA's menus
+// come before the Plugin menu. When that happens neither the plugin's menu item
+// nor its key listener runs, so the key-up listener tells the user instead.
 
 const DUPLICATE_TRIGGER_MS = 300;
-const keyActions = {}; // normalized key -> action, for the current shortcuts
+const keyActions = {}; // event key -> { name, action }, for the current shortcuts
 const listenedKeys = new Set();
 const lastTriggered = {};
+const ranSinceKeyUp = {}; // shortcut name -> true once its action ran during a press
 
 /**
  * Runs a shortcut action once even if the menu item and the key listener both
  * fire for the same key press.
  */
 function runShortcutAction(name, action) {
+  ranSinceKeyUp[name] = true;
   const now = Date.now();
   if (now - (lastTriggered[name] || 0) < DUPLICATE_TRIGGER_MS) return;
   lastTriggered[name] = now;
   action();
+}
+
+/**
+ * The key name IINA reports in key events for a shortcut. IINA names a key
+ * after the character it types, so the keypad's 0 to 9 arrive as plain digits
+ * ("KP0" arrives as "0", "Ctrl+KP1" as "Ctrl+1").
+ */
+function eventKey(binding) {
+  return input.normalizeKeyCode(binding.replace(/(^|\+)KP([0-9])$/i, "$1$2"));
+}
+
+/** Describes IINA's own binding for a key, or returns null if it has none. */
+function iinaBinding(key) {
+  try {
+    const bindings = input.getAllKeyBindings();
+    const binding = bindings && bindings[key];
+    return binding && binding.action ? String(binding.action) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function warnKeyTaken(key, binding) {
+  const action = iinaBinding(key);
+  core.osd(
+    binding +
+      " is also IINA's shortcut" +
+      (action ? " for \"" + action + "\"" : "") +
+      ", which wins. Remove it in IINA Settings > Key Bindings, or pick another key"
+  );
+}
+
+function listen(key) {
+  if (listenedKeys.has(key)) return;
+  // IINA has no way to remove a listener, so each key gets its listeners for
+  // good and they look up whether the key is still assigned.
+  listenedKeys.add(key);
+  input.onKeyDown(
+    key,
+    () => {
+      const entry = keyActions[key];
+      if (!entry) return false;
+      entry.action();
+      return true;
+    },
+    input.PRIORITY_HIGH
+  );
+  if (typeof input.onKeyUp !== "function") return;
+  input.onKeyUp(
+    key,
+    () => {
+      const entry = keyActions[key];
+      if (!entry) return false;
+      const ran = ranSinceKeyUp[entry.name];
+      ranSinceKeyUp[entry.name] = false;
+      if (!ran) warnKeyTaken(key, entry.binding);
+      return true;
+    },
+    input.PRIORITY_HIGH
+  );
 }
 
 function bindKeys(actions) {
@@ -484,22 +552,9 @@ function bindKeys(actions) {
   shortcutKeys().forEach((name) => {
     const binding = shortcut(name);
     if (!binding) return;
-    const key = input.normalizeKeyCode(binding);
-    keyActions[key] = actions[name];
-    if (listenedKeys.has(key)) return;
-    // IINA has no way to remove a listener, so each key gets one listener for
-    // good and it looks up whether the key is still assigned.
-    listenedKeys.add(key);
-    input.onKeyDown(
-      key,
-      () => {
-        const action = keyActions[key];
-        if (!action) return false;
-        action();
-        return true;
-      },
-      input.PRIORITY_HIGH
-    );
+    const key = eventKey(binding);
+    keyActions[key] = { name, binding, action: actions[name] };
+    listen(key);
   });
 }
 

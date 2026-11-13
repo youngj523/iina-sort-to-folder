@@ -44,7 +44,7 @@ The folders must already exist. The plugin does not create them.
 These settings are on the same Preferences page and take effect when you return to the player window.
 
 - **Button position**: top, middle or bottom, on the left or right side of the video. The default is middle right. With more than five folders the buttons are drawn smaller so they fit.
-- **Shortcuts**: every folder's shortcut and the undo shortcut can be changed. Click a field and press the key combination you want. Press Esc to cancel, or click Clear to have no shortcut. Combinations that IINA or macOS already use, such as Command+Q, cannot be recorded. The plugin's shortcuts take priority over IINA's own key bindings, so a key that IINA already uses for something else runs the plugin's action instead.
+- **Shortcuts**: every folder's shortcut and the undo shortcut can be changed. Click a field and press the key combination you want. Press Esc to cancel, or click Clear to have no shortcut. Combinations that IINA or macOS already use, such as Command+Q, cannot be recorded. The plugin's shortcuts take priority over IINA's own key bindings, so a key that IINA already uses for something else runs the plugin's action instead. The exception is a key that IINA also shows in its own menus (for example `0`, which the default mpv key bindings use for Audio > Volume Up): macOS gives that key to IINA's menu first, so the plugin shows a message instead. Remove or change that key in IINA Settings > Key Bindings, or pick another shortcut. Keypad digits count as the same key as the digits above the letters, so KP0 and 0 are one key.
 
 ## Usage
 

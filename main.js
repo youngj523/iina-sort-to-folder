@@ -247,7 +247,7 @@ async function moveCurrentTo(slot) {
   }
   const cfg = slotConfig(slot);
   if (!cfg.dir) {
-    core.osd("Folder " + slot + " is not set. Use Plugin > Set Folder " + slot + "…");
+    core.osd("Folder " + slot + " is not set. Set it in the plugin's preferences");
     return;
   }
   if (!isDirectory(cfg.dir)) {
@@ -419,20 +419,6 @@ event.on("iina.plugin-overlay-loaded", () => {
 
 // ---------- Menu and shortcuts ----------
 
-async function chooseDir(slot) {
-  let chosen;
-  try {
-    chosen = await utils.chooseFile("Choose folder " + slot, { chooseDir: true });
-  } catch (err) {
-    return;
-  }
-  if (!chosen || typeof chosen !== "string") return;
-  preferences.set("dir" + slot, normalizeSlashes(chosen));
-  preferences.sync();
-  refreshOverlay();
-  core.osd("Folder " + slot + ": " + chosen);
-}
-
 function toggleButtons() {
   const next = !buttonsEnabled();
   preferences.set("showButtons", next);
@@ -533,9 +519,6 @@ function buildMenu() {
   });
   menu.addItem(menu.item("Undo Last Move", actions.keyUndo, shortcutOptions("keyUndo")));
   menu.addItem(menu.separator());
-  slots.forEach((slot) => {
-    menu.addItem(menu.item("Set Folder " + slot + "…", () => chooseDir(slot)));
-  });
   menu.addItem(menu.item("Show/Hide On-Screen Buttons", () => toggleButtons()));
   bindKeys(actions);
   builtShortcuts = shortcutSignature();

@@ -21,6 +21,10 @@ const DEFAULT_POSITION = "middle-right";
 
 let busy = false;
 let lastMove = null; // { from, to, index } — kept for "Undo Last Move"
+// A move message to show again once the next video has loaded, since loading
+// a file can replace the message on screen before it could be read.
+let pendingMoveOsd = null; // { text, until }
+const MOVE_OSD_REPEAT_MS = 5000;
 
 // ---------- Path helpers ----------
 
@@ -51,6 +55,26 @@ function resolveDir(raw) {
   if (p.startsWith("~/")) p = utils.resolvePath(p);
   if (!p || !p.startsWith("/")) return null;
   return normalizeSlashes(p);
+}
+
+/** Shortens a path under the home folder to start with "~" for messages. */
+function displayPath(p) {
+  let home = "";
+  try {
+    home = normalizeSlashes(String(utils.resolvePath("~/") || ""));
+  } catch (err) {
+    home = "";
+  }
+  if (home && home !== "/" && (p === home || p.startsWith(home + "/"))) {
+    return "~" + p.slice(home.length);
+  }
+  return p;
+}
+
+/** Shows a move result now and again after the next video loads. */
+function showMoveOsd(text, repeatAfterLoad) {
+  core.osd(text);
+  pendingMoveOsd = repeatAfterLoad ? { text, until: Date.now() + MOVE_OSD_REPEAT_MS } : null;
 }
 
 function isDirectory(p) {
@@ -270,8 +294,9 @@ async function moveCurrentTo(slot) {
     if (await isSameDirectory(dirname(from), cfg.dir)) {
       // Nothing to move: treat the video as sorted and go on to the next one.
       const skipped = playNextAfter(from, index);
-      core.osd(
-        "Already in \"" + cfg.label + "\"" + (skipped ? ", playing next" : " (last video)")
+      showMoveOsd(
+        "Already in " + displayPath(cfg.dir) + (skipped ? ", playing next" : " (last video)"),
+        skipped
       );
       return;
     }
@@ -294,9 +319,12 @@ async function moveCurrentTo(slot) {
     } catch (err) {
       console.error("Playlist update failed: " + err);
     }
-    core.osd(
-      "Moved to \"" + cfg.label + "\": " + basename(to) +
-        (advanced ? "" : " (playlist was not updated)")
+    const renamed = basename(to) !== basename(from);
+    showMoveOsd(
+      "Moved to " + displayPath(cfg.dir) +
+        (renamed ? " as " + basename(to) : "") +
+        (advanced ? "" : " (playlist was not updated)"),
+      advanced
     );
   } finally {
     busy = false;
@@ -347,7 +375,7 @@ async function undoLastMove() {
       return;
     }
     lastMove = null;
-    core.osd("Restored: " + basename(from));
+    showMoveOsd("Moved back to " + displayPath(dirname(from)) + ": " + basename(from), true);
     try {
       restoreToPlaylist(from, index);
     } catch (err) {
@@ -595,5 +623,14 @@ function applyPreferences() {
   refreshMenu();
 }
 
-event.on("iina.file-loaded", applyPreferences);
+function repeatMoveOsd() {
+  const pending = pendingMoveOsd;
+  pendingMoveOsd = null;
+  if (pending && Date.now() <= pending.until) core.osd(pending.text);
+}
+
+event.on("iina.file-loaded", () => {
+  repeatMoveOsd();
+  applyPreferences();
+});
 event.on("iina.window-main.changed", applyPreferences);

@@ -8,6 +8,7 @@ Buttons appear on the video, one per folder. Click one to move **the video being
 - Set up to 10 destination folders in the plugin preferences. You start with one and add more as needed.
 - Each folder has its own on-screen button and its own shortcut. Button labels can be customized; when left empty, the folder name is shown.
 - After a move, the next video in the playlist plays and the moved one is removed from the playlist. If the moved video was the last entry, the previous one plays instead.
+- After every move, from a button, a shortcut or the menu, an on-screen message names the destination folder, for example `Moved to ~/Movies/Keep`. The message is shown again once the next video has loaded, so it is not lost when playback switches files. Undo shows where the file went back to the same way.
 - A file with the same name in the destination is never overwritten. The moved file is renamed to `name (1).mp4` instead.
 - If the video is already in the chosen folder, nothing is moved and the next video plays. The video stays in the playlist.
 - The last move can be undone: the file goes back to its original location and playlist position.
